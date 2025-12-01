@@ -1,34 +1,17 @@
 services:
-  traefik:
-    image: "traefik:v2.10"
-    container_name: "traefik"
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.email=admin@vidatodarevisao.com.br"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+  nginx:
+    image: nginx:alpine
+    container_name: hk_nginx
     ports:
       - "80:80"
-      - "443:443"
-      - "8080:8080"
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./letsencrypt:/letsencrypt"
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - client
+      - server
     networks:
       - web_network
     restart: always
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=hk_web_network"
-      # Global HTTP -> HTTPS Redirect
-      - "traefik.http.routers.redirs.rule=hostregexp(`{host:.+}`)"
-      - "traefik.http.routers.redirs.entrypoints=web"
-      - "traefik.http.routers.redirs.middlewares=redirect-to-https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
 
   db:
     image: postgres:15-alpine
@@ -53,16 +36,6 @@ services:
       - db
     networks:
       - web_network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=hk_web_network"
-      # Router for API (HTTPS)
-      - "traefik.http.routers.server.rule=(Host(`vidatodarevisao.com.br`) || Host(`www.vidatodarevisao.com.br`)) && PathPrefix(`/api`)"
-      - "traefik.http.routers.server.entrypoints=websecure"
-      - "traefik.http.routers.server.middlewares=api-strip"
-      - "traefik.http.middlewares.api-strip.stripprefix.prefixes=/api"
-      - "traefik.http.routers.server.tls.certresolver=myresolver"
-      - "traefik.http.services.server.loadbalancer.server.port=3333"
     restart: always
 
   client:
@@ -71,14 +44,6 @@ services:
       - server
     networks:
       - web_network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=hk_web_network"
-      # Router for Client (HTTPS)
-      - "traefik.http.routers.client.rule=Host(`vidatodarevisao.com.br`) || Host(`www.vidatodarevisao.com.br`) || HostRegexp(`{host:.+}`)"
-      - "traefik.http.routers.client.entrypoints=websecure"
-      - "traefik.http.routers.client.tls.certresolver=myresolver"
-      - "traefik.http.services.client.loadbalancer.server.port=80"
     restart: always
 
 networks:
