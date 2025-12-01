@@ -18,9 +18,9 @@ services:
     image: postgres:15-alpine
     container_name: hk_db
     environment:
-      - POSTGRES_USER=hk_user
-      - POSTGRES_PASSWORD=secure_password_123
-      - POSTGRES_DB=hk_db
+      - POSTGRES_USER=raulkiyoshi
+      - POSTGRES_PASSWORD=Ghb260829cb132!
+      - POSTGRES_DB=raulkiyoshi
     volumes:
       - db_data:/var/lib/postgresql/data
     restart: always
@@ -28,8 +28,8 @@ services:
   server:
     build: ./server
     environment:
-      - DATABASE_URL=postgresql://hk_user:secure_password_123@db:5432/hk_db?schema=public
-      - JWT_SECRET=super_secret_jwt_key_change_me
+      - DATABASE_URL=postgresql://raulkiyoshi:Ghb260829cb132!@db:5432/raulkiyoshi?schema=public
+      - JWT_SECRET=Theojunji1!
       - PORT=3333
     depends_on:
       - db
