@@ -1,6 +1,6 @@
-# Deployment Instructions for Contabo VPS (with Traefik)
+# Deployment Instructions for Contabo VPS
 
-This guide explains how to deploy your application to your Contabo VPS using Docker and Traefik.
+This guide explains how to deploy your application to your Contabo VPS using Docker, Traefik, and a local PostgreSQL database.
 
 ## Prerequisites
 
@@ -64,11 +64,19 @@ Create a `.env` file in the root of your project on the VPS:
 nano .env
 ```
 
-Add your production variables:
+Add your production variables. **You define the database credentials here:**
+
 ```env
-DATABASE_URL="postgresql://user:password@host:5432/dbname?schema=public"
-JWT_SECRET="your_super_secure_secret"
+# Database Credentials (YOU CHOOSE THESE)
+DB_USER=hk_user
+DB_PASSWORD=secure_password_123
+DB_NAME=hk_db
+
+# Security
+JWT_SECRET=another_super_secure_secret
 ```
+
+The `docker-compose.yml` will automatically use these to set up the database and connect the server to it.
 
 ## Step 4: Deploy
 
@@ -81,10 +89,19 @@ docker compose up -d --build
 - `-d`: Detached mode (runs in background).
 - `--build`: Rebuilds images to ensure latest code is used.
 
-## Step 5: Verify
+## Step 5: Initialize Database
+
+Since this is a new database, you need to push the schema:
+
+```bash
+# Run prisma db push inside the server container
+docker compose exec server npx prisma db push
+```
+
+## Step 6: Verify
 
 - **App**: Visit `http://YOUR_VPS_IP`
-- **Traefik Dashboard**: Visit `http://YOUR_VPS_IP:8080` (Insecure mode enabled for debugging)
+- **Traefik Dashboard**: Visit `http://YOUR_VPS_IP:8080`
 
 ## Troubleshooting
 

@@ -16,12 +16,25 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     restart: always
 
+  db:
+    image: postgres:15-alpine
+    container_name: hk_db
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    restart: always
+
   server:
     build: ./server
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?schema=public
       - JWT_SECRET=${JWT_SECRET}
       - PORT=3333
+    depends_on:
+      - db
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.server.rule=PathPrefix(`/api`)"
@@ -37,3 +50,6 @@ services:
       - "traefik.http.routers.client.rule=PathPrefix(`/`)"
       - "traefik.http.services.client.loadbalancer.server.port=80"
     restart: always
+
+volumes:
+  db_data:
