@@ -18,9 +18,12 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./letsencrypt:/letsencrypt"
+    networks:
+      - web_network
     restart: always
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=hk_web_network"
       # Global HTTP -> HTTPS Redirect
       - "traefik.http.routers.redirs.rule=hostregexp(`{host:.+}`)"
       - "traefik.http.routers.redirs.entrypoints=web"
@@ -36,6 +39,8 @@ services:
       - POSTGRES_DB=raulkiyoshi
     volumes:
       - db_data:/var/lib/postgresql/data
+    networks:
+      - web_network
     restart: always
 
   server:
@@ -46,8 +51,11 @@ services:
       - PORT=3333
     depends_on:
       - db
+    networks:
+      - web_network
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=hk_web_network"
       # Router for API (HTTPS)
       - "traefik.http.routers.server.rule=(Host(`vidatodarevisao.com.br`) || Host(`www.vidatodarevisao.com.br`)) && PathPrefix(`/api`)"
       - "traefik.http.routers.server.entrypoints=websecure"
@@ -59,14 +67,21 @@ services:
     build: ./client
     depends_on:
       - server
+    networks:
+      - web_network
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=hk_web_network"
       # Router for Client (HTTPS)
       - "traefik.http.routers.client.rule=Host(`vidatodarevisao.com.br`) || Host(`www.vidatodarevisao.com.br`)"
       - "traefik.http.routers.client.entrypoints=websecure"
       - "traefik.http.routers.client.tls.certresolver=myresolver"
       - "traefik.http.services.client.loadbalancer.server.port=80"
     restart: always
+
+networks:
+  web_network:
+    name: hk_web_network
 
 volumes:
   db_data:
