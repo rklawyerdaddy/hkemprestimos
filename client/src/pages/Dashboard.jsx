@@ -94,26 +94,28 @@ const Dashboard = () => {
                             {alerts.dueToday.length === 0 ? (
                                 <p className="p-6 text-slate-500 text-center">Nenhum vencimento para hoje.</p>
                             ) : (
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-slate-50 text-slate-500">
-                                        <tr>
-                                            <th className="px-6 py-3">Cliente</th>
-                                            <th className="px-6 py-3">Parcela</th>
-                                            <th className="px-6 py-3">Valor</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {alerts.dueToday.map((inst) => (
-                                            <tr key={inst.id} className="hover:bg-slate-50">
-                                                <td className="px-6 py-4 font-medium text-slate-900">{inst.loan.client.name}</td>
-                                                <td className="px-6 py-4">{inst.number}</td>
-                                                <td className="px-6 py-4 font-bold text-slate-700">
-                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(inst.amount)}
-                                                </td>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left min-w-[500px]">
+                                        <thead className="bg-slate-50 text-slate-500">
+                                            <tr>
+                                                <th className="px-6 py-3">Cliente</th>
+                                                <th className="px-6 py-3">Parcela</th>
+                                                <th className="px-6 py-3">Valor</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {alerts.dueToday.map((inst) => (
+                                                <tr key={inst.id} className="hover:bg-slate-50">
+                                                    <td className="px-6 py-4 font-medium text-slate-900">{inst.loan.client.name}</td>
+                                                    <td className="px-6 py-4">{inst.number}</td>
+                                                    <td className="px-6 py-4 font-bold text-slate-700">
+                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(inst.amount)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             )}
                         </div>
                     </div>
@@ -133,28 +135,30 @@ const Dashboard = () => {
                             {alerts.late.length === 0 ? (
                                 <p className="p-6 text-slate-500 text-center">Nenhum pagamento atrasado.</p>
                             ) : (
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-slate-50 text-slate-500">
-                                        <tr>
-                                            <th className="px-6 py-3">Cliente</th>
-                                            <th className="px-6 py-3">Vencimento</th>
-                                            <th className="px-6 py-3">Valor</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {alerts.late.map((inst) => (
-                                            <tr key={inst.id} className="hover:bg-slate-50">
-                                                <td className="px-6 py-4 font-medium text-slate-900">{inst.loan.client.name}</td>
-                                                <td className="px-6 py-4 text-red-600">
-                                                    {new Date(inst.dueDate).toLocaleDateString('pt-BR')}
-                                                </td>
-                                                <td className="px-6 py-4 font-bold text-slate-700">
-                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(inst.amount)}
-                                                </td>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left min-w-[500px]">
+                                        <thead className="bg-slate-50 text-slate-500">
+                                            <tr>
+                                                <th className="px-6 py-3">Cliente</th>
+                                                <th className="px-6 py-3">Vencimento</th>
+                                                <th className="px-6 py-3">Valor</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {alerts.late.map((inst) => (
+                                                <tr key={inst.id} className="hover:bg-slate-50">
+                                                    <td className="px-6 py-4 font-medium text-slate-900">{inst.loan.client.name}</td>
+                                                    <td className="px-6 py-4 text-red-600">
+                                                        {new Date(inst.dueDate).toLocaleDateString('pt-BR')}
+                                                    </td>
+                                                    <td className="px-6 py-4 font-bold text-slate-700">
+                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(inst.amount)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             )}
                         </div>
                     </div>
