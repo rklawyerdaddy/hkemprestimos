@@ -73,7 +73,7 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=hk_web_network"
       # Router for Client (HTTPS)
-      - "traefik.http.routers.client.rule=Host(`vidatodarevisao.com.br`) || Host(`www.vidatodarevisao.com.br`)"
+      - "traefik.http.routers.client.rule=Host(`vidatodarevisao.com.br`) || Host(`www.vidatodarevisao.com.br`) || HostRegexp(`{host:.+}`)"
       - "traefik.http.routers.client.entrypoints=websecure"
       - "traefik.http.routers.client.tls.certresolver=myresolver"
       - "traefik.http.services.client.loadbalancer.server.port=80"
