@@ -542,6 +542,41 @@ app.get('/transactions', authenticateToken, async (req, res) => {
     }
 });
 
+app.post('/transactions', authenticateToken, async (req, res) => {
+    const { type, description, amount, category, date } = req.body;
+    try {
+        const transaction = await prisma.transaction.create({
+            data: {
+                userId: req.user.id,
+                type,
+                description,
+                amount: parseFloat(amount),
+                category,
+                date: new Date(date || new Date())
+            }
+        });
+        res.json(transaction);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao criar transação' });
+    }
+});
+
+app.delete('/transactions/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const transaction = await prisma.transaction.findFirst({
+            where: { id, userId: req.user.id }
+        });
+
+        if (!transaction) return res.status(404).json({ error: 'Transação não encontrada' });
+
+        await prisma.transaction.delete({ where: { id } });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao excluir transação' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });
