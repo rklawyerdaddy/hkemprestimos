@@ -116,6 +116,25 @@ app.put('/clients/:id', async (req, res) => {
     }
 });
 
+app.delete('/clients/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Check if client has loans
+        const loans = await prisma.loan.findFirst({
+            where: { clientId: id }
+        });
+
+        if (loans) {
+            return res.status(400).json({ error: 'Não é possível excluir cliente com empréstimos vinculados.' });
+        }
+
+        await prisma.client.delete({ where: { id } });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao excluir cliente' });
+    }
+});
+
 app.get('/clients/:id/stats', async (req, res) => {
     const { id } = req.params;
     try {

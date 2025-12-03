@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
-import { Plus, Search, BarChart2, X, MessageCircle, Pencil, Star } from 'lucide-react';
+import { Plus, Search, BarChart2, X, MessageCircle, Pencil, Star, Trash2 } from 'lucide-react';
 
 const Clients = () => {
     const [clients, setClients] = useState([]);
@@ -16,6 +16,18 @@ const Clients = () => {
     const loadClients = async () => {
         const response = await api.get('/clients');
         setClients(response.data);
+    };
+
+    const handleDelete = async (client) => {
+        if (window.confirm(`Tem certeza que deseja excluir o cliente ${client.name}?`)) {
+            try {
+                await api.delete(`/clients/${client.id}`);
+                loadClients();
+            } catch (error) {
+                const msg = error.response?.data?.error || 'Erro ao excluir cliente';
+                alert(msg);
+            }
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -230,6 +242,13 @@ const Clients = () => {
                                             title="Editar"
                                         >
                                             <Pencil size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(client)}
+                                            className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                                            title="Excluir"
+                                        >
+                                            <Trash2 size={18} />
                                         </button>
                                         {client.whatsapp && (
                                             <button
