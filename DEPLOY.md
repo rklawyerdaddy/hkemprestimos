@@ -7,35 +7,23 @@ This guide explains how to deploy your application to your Contabo VPS using Doc
 1.  **Access to your VPS**: You should have the IP address (`209.145.56.53`) and root password (or SSH key).
 2.  **Docker & Docker Compose**: Installed on your VPS.
 
-## Step 1: Install Docker on VPS (if not installed)
+## Step 1: Install Docker on VPS
 
-Connect to your VPS via SSH:
-```bash
-ssh root@209.145.56.53
-```
+Connect to your VPS via SSH and run these commands to install Docker:
 
-Run the following commands to install Docker:
 ```bash
-# Update package index
+# Update package list
 apt-get update
 
-# Install prerequisites
-apt-get install -y ca-certificates curl gnupg
+# Install Docker and Docker Compose
+apt-get install -y docker.io docker-compose-v2
 
-# Add Docker's official GPG key
-install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-chmod a+r /etc/apt/keyrings/docker.gpg
+# Start and enable Docker service
+systemctl start docker
+systemctl enable docker
 
-# Set up the repository
-echo \
-  "deb [arch=\"$(dpkg --print-architecture)\" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | \
-  tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Install Docker Engine
-apt-get update
-apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+# Verify installation
+docker --version
 ```
 
 ## Step 2: Prepare Project Files
