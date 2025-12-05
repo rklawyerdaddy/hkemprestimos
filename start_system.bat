@@ -14,8 +14,8 @@ IF %ERRORLEVEL% NEQ 0 (
     exit
 )
 
-echo [1/3] Iniciando Banco de Dados e Servidor...
-start "HK Server" cmd /k "cd server && npm install && npx prisma db push && npm run dev"
+echo [1/3] Iniciando Servidor (Backend)...
+start "HK Server" cmd /k "cd server && npm install && npx prisma generate && npx prisma db push && npm run dev"
 
 echo [2/3] Aguardando servidor iniciar...
 timeout /t 5 /nobreak >nul

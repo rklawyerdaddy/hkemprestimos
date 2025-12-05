@@ -15,71 +15,86 @@ const Login = () => {
             const response = await api.post('/login', { username, password });
             localStorage.setItem('token', response.data.token);
             localStorage.setItem('user', response.data.name);
+            localStorage.setItem('role', response.data.role); // Save role
             api.defaults.headers.Authorization = `Bearer ${response.data.token}`;
-            navigate('/');
+            if (response.data.role === 'ADMIN') {
+                navigate('/admin');
+            } else {
+                navigate('/');
+            }
         } catch (err) {
             setError('Usuário ou senha incorretos');
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+        <div className="min-h-screen flex items-center justify-center bg-slate-950 relative overflow-hidden">
+            {/* Background Effects */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-gold-600/20 via-slate-950 to-slate-950 pointer-events-none" />
+            <div className="absolute -top-24 -left-24 w-96 h-96 bg-gold-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="bg-white/10 backdrop-blur-lg p-8 rounded-2xl shadow-2xl w-full max-w-md border border-white/20 relative z-10 animate-in fade-in zoom-in duration-500">
-                <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-white mb-2">Bem-vindo</h1>
-                    <p className="text-blue-200">Entre para gerenciar seus empréstimos</p>
+            <div className="glass-card p-10 rounded-3xl w-full max-w-md relative z-10 animate-in fade-in zoom-in duration-500 border-white/10 shadow-2xl shadow-black/50">
+                <div className="text-center mb-10">
+                    <div className="w-16 h-16 bg-gradient-to-br from-gold-400 to-gold-600 rounded-2xl flex items-center justify-center shadow-lg shadow-gold-500/20 mx-auto mb-6">
+                        <span className="text-slate-950 font-black text-3xl">H</span>
+                    </div>
+                    <h1 className="text-3xl font-bold text-slate-100 mb-2 tracking-tight">Bem-vindo de volta</h1>
+                    <p className="text-slate-400">Acesse sua conta para continuar</p>
                 </div>
 
                 {error && (
-                    <div className="bg-red-500/20 border border-red-500/50 text-red-200 p-3 rounded-lg mb-6 text-sm text-center">
+                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-8 text-sm text-center font-medium">
                         {error}
                     </div>
                 )}
 
                 <form onSubmit={handleLogin} className="space-y-6">
-                    <div>
-                        <label className="block text-blue-200 text-sm font-medium mb-2">Usuário</label>
-                        <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-300" size={20} />
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Usuário</label>
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <User className="text-slate-500 group-focus-within:text-gold-400 transition-colors" size={20} />
+                            </div>
                             <input
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className="w-full bg-slate-800/50 border border-blue-500/30 rounded-lg py-3 pl-10 pr-4 text-white placeholder-blue-400/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                placeholder="Seu usuário"
+                                className="input-premium w-full pl-11 py-3.5 bg-slate-950/50 border-slate-800 focus:border-gold-500/50 focus:ring-gold-500/20"
+                                placeholder="Digite seu usuário"
                             />
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-blue-200 text-sm font-medium mb-2">Senha</label>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-300" size={20} />
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Senha</label>
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <Lock className="text-slate-500 group-focus-within:text-gold-400 transition-colors" size={20} />
+                            </div>
                             <input
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-slate-800/50 border border-blue-500/30 rounded-lg py-3 pl-10 pr-4 text-white placeholder-blue-400/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                placeholder="Sua senha"
+                                className="input-premium w-full pl-11 py-3.5 bg-slate-950/50 border-slate-800 focus:border-gold-500/50 focus:ring-gold-500/20"
+                                placeholder="Digite sua senha"
                             />
                         </div>
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3 rounded-lg shadow-lg transform transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
+                        className="btn-primary w-full flex items-center justify-center gap-2 py-3.5 text-lg shadow-xl shadow-gold-900/20 hover:shadow-gold-900/40 mt-2"
                     >
                         Entrar
                         <ArrowRight size={20} />
                     </button>
                 </form>
 
-                <div className="mt-6 text-center">
-                    <p className="text-blue-200 text-sm">
+                <div className="mt-8 text-center">
+                    <p className="text-slate-500 text-sm">
                         Não tem uma conta?{' '}
-                        <Link to="/register" className="text-white font-bold hover:underline">
+                        <Link to="/register" className="text-gold-400 font-bold hover:text-gold-300 transition-colors">
                             Criar Conta
                         </Link>
                     </p>

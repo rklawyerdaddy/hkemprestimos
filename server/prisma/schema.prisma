@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -15,7 +15,50 @@ model User {
   clients      Client[]
   transactions Transaction[]
   partners     Partner[]
+  role         String        @default("USER") // USER, ADMIN
+  active       Boolean       @default(true)
+  planId       String?
+  plan         Plan?         @relation(fields: [planId], references: [id])
+  subscription Subscription?
   createdAt    DateTime      @default(now())
+}
+
+model Plan {
+  id            String         @id @default(uuid())
+  name          String
+  price         Decimal
+  description   String?
+  features      String?
+  maxClients    Int            @default(100)
+  maxLoans      Int            @default(100)
+  users         User[]
+  subscriptions Subscription[]
+  createdAt     DateTime       @default(now())
+}
+
+model Subscription {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id])
+  planId           String
+  plan             Plan      @relation(fields: [planId], references: [id])
+  status           String    @default("ACTIVE") // ACTIVE, CANCELED, PAST_DUE
+  gateway          String?   // STRIPE, ASAAS, MERCADOPAGO
+  gatewayId        String?   // ID na plataforma de pagamento
+  currentPeriodEnd DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  payments         Payment[]
+}
+
+model Payment {
+  id             String       @id @default(uuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  amount         Decimal
+  status         String       // PENDING, PAID, FAILED
+  gatewayId      String?
+  createdAt      DateTime     @default(now())
 }
 
 model Client {
@@ -31,12 +74,24 @@ model Client {
   pix         String?
   bank        String?
   observation String?
+  group       String?  // Categoria/Pasta para organização
   rating      Int      @default(5)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   loans       Loan[]
+  documents   ClientDocument[]
 
   @@unique([userId, cpf]) // CPF único apenas dentro da conta do mesmo usuário
+}
+
+model ClientDocument {
+  id        String   @id @default(uuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name      String
+  url       String
+  type      String?
+  createdAt DateTime @default(now())
 }
 
 model Partner {

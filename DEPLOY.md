@@ -113,8 +113,60 @@ docker compose exec server npx prisma db push
 - **Stop**: `docker compose down`
 - **Rebuild**: `docker compose up -d --build`
 
+## Security Best Practices (CRITICAL)
+Before going live, you MUST secure your VPS.
+
+### 1. Firewall (UFW)
+Enable the firewall to only allow necessary ports.
+
+```bash
+# Allow SSH (Port 22 - or your custom port)
+ufw allow 22/tcp
+
+# Allow HTTP and HTTPS
+ufw allow 80/tcp
+ufw allow 443/tcp
+
+# Enable Firewall
+ufw enable
+```
+
+**Verify:** `ufw status` should show only 22, 80, and 443 allowed.
+
+### 2. Secure SSH
+- **Disable Root Login**: Create a new user with sudo privileges and disable root login in `/etc/ssh/sshd_config` (`PermitRootLogin no`).
+- **Use SSH Keys**: Disable password authentication (`PasswordAuthentication no`) and use SSH keys only.
+
+### 3. Environment Variables
+Ensure your `.env` file has strong secrets.
+
+```env
+# Database Credentials
+DB_USER=raulkiyoshi
+DB_PASSWORD=YOUR_STRONG_DB_PASSWORD
+DB_NAME=raulkiyoshi
+
+# Security
+JWT_SECRET=YOUR_VERY_LONG_RANDOM_STRING_HERE
+CORS_ORIGIN=http://hkemprestimos.site
+```
+
+### 4. SSL/TLS (HTTPS)
+Do not run a commercial site on HTTP. Enable SSL using the provided Nginx config and Certbot.
+
+1.  Uncomment the SSL `server` block in `nginx/default.conf`.
+2.  Run Certbot (you can add a certbot service to docker-compose or run it on the host).
+    *   *Simpler approach*: Install certbot on the host (`apt install certbot`) and generate certs, then mount `/etc/letsencrypt` into the Nginx container.
+
+### 5. Updates
+Regularly update your VPS packages:
+```bash
+apt update && apt upgrade -y
+```
+
 ## SSL Configuration (Future Step)
 
 Currently, SSL is disabled. To enable it later:
 1. Uncomment the SSL section in `nginx/default.conf`.
 2. Run Certbot to generate certificates.
+

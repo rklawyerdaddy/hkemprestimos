@@ -1,18 +1,94 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const hpp = require('hpp');
+const xss = require('xss-clean');
 const { PrismaClient } = require('@prisma/client');
 const { addMonths, startOfDay, endOfDay, isBefore, parseISO } = require('date-fns');
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.JWT_SECRET || 'hk-loans-secret-key-change-this';
+const SECRET_KEY = process.env.JWT_SECRET;
 
-app.use(cors());
-app.use(express.json());
+if (!SECRET_KEY) {
+    console.error('FATAL ERROR: JWT_SECRET is not defined.');
+    process.exit(1);
+}
+
+// Security Middlewares
+app.use(helmet()); // Set security headers
+
+// Rate Limiting
+const limiter = rateLimit({
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: 'Muitas requisições deste IP, tente novamente mais tarde.'
+});
+app.use(limiter);
+
+// Prevent HTTP Parameter Pollution
+app.use(hpp());
+
+// Sanitize Data (XSS)
+app.use(xss());
+
+// Configuração do Multer para Uploads
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB
+    fileFilter: (req, file, cb) => {
+        const filetypes = /jpeg|jpg|png|pdf/;
+        const mimetype = filetypes.test(file.mimetype);
+        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+        if (mimetype && extname) {
+            return cb(null, true);
+        }
+        cb(new Error('Apenas arquivos de imagem e PDF são permitidos!'));
+    }
+});
+
+// CORS Configuration
+const corsOptions = {
+    origin: process.env.CORS_ORIGIN || '*', // Em produção, defina isso para o domínio do frontend
+    optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+
+app.use(express.json({ limit: '10kb' })); // Limit body size
+app.use('/uploads', express.static(uploadDir)); // Servir arquivos estáticos
+
+// Middleware para remover /api se vier na URL (garantia para local dev)
+app.use((req, res, next) => {
+    if (req.url.startsWith('/api')) {
+        req.url = req.url.replace('/api', '');
+    }
+    next();
+});
 
 // Middleware de Autenticação
 const authenticateToken = (req, res, next) => {
@@ -36,13 +112,214 @@ app.post('/login', async (req, res) => {
         const user = await prisma.user.findUnique({ where: { username } });
         if (!user) return res.status(400).json({ error: 'Usuário não encontrado' });
 
+        if (user.active === false) {
+            return res.status(403).json({ error: 'Conta inativa. Contate o suporte.' });
+        }
+
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) return res.status(400).json({ error: 'Senha incorreta' });
 
-        const token = jwt.sign({ id: user.id, username: user.username }, SECRET_KEY, { expiresIn: '24h' });
-        res.json({ token, name: user.name });
+        const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, SECRET_KEY, { expiresIn: '24h' });
+        res.json({ token, name: user.name, role: user.role });
     } catch (error) {
         res.status(500).json({ error: 'Erro no login' });
+    }
+});
+
+// Middleware Admin
+const authenticateAdmin = (req, res, next) => {
+    authenticateToken(req, res, () => {
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+        }
+        next();
+    });
+};
+
+// --- ROTAS ADMIN ---
+
+app.get('/admin/users', authenticateAdmin, async (req, res) => {
+    try {
+        const users = await prisma.user.findMany({
+            select: {
+                id: true,
+                username: true,
+                name: true,
+                role: true,
+                active: true,
+                createdAt: true,
+                plan: { select: { name: true } },
+                _count: {
+                    select: { clients: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao buscar usuários' });
+    }
+});
+
+app.post('/admin/users', authenticateAdmin, async (req, res) => {
+    try {
+        const { username, password, name, role, planId } = req.body;
+
+        const existingUser = await prisma.user.findUnique({ where: { username } });
+        if (existingUser) return res.status(400).json({ error: 'Usuário já existe' });
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const user = await prisma.user.create({
+            data: {
+                username,
+                password: hashedPassword,
+                name,
+                role: role || 'USER',
+                planId: planId || null,
+                active: true
+            }
+        });
+
+        // Se tiver plano, cria subscrição (mock por enquanto)
+        if (planId) {
+            await prisma.subscription.create({
+                data: {
+                    userId: user.id,
+                    planId: planId,
+                    status: 'ACTIVE',
+                    gateway: 'MANUAL'
+                }
+            });
+        }
+
+        res.json({ id: user.id, username: user.username });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Erro ao criar usuário' });
+    }
+});
+
+app.put('/admin/users/:id', authenticateAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, username, role, planId, password } = req.body;
+
+        const data = {
+            name,
+            username,
+            role,
+            planId: planId || null
+        };
+
+        if (password) {
+            data.password = await bcrypt.hash(password, 10);
+        }
+
+        const user = await prisma.user.update({
+            where: { id },
+            data
+        });
+
+        // Atualizar ou criar assinatura se o plano mudou
+        if (planId) {
+            const subscription = await prisma.subscription.findUnique({ where: { userId: id } });
+            if (subscription) {
+                await prisma.subscription.update({
+                    where: { userId: id },
+                    data: { planId }
+                });
+            } else {
+                await prisma.subscription.create({
+                    data: {
+                        userId: id,
+                        planId,
+                        status: 'ACTIVE',
+                        gateway: 'MANUAL'
+                    }
+                });
+            }
+        }
+
+        res.json(user);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Erro ao atualizar usuário' });
+    }
+});
+
+app.put('/admin/users/:id/toggle-status', authenticateAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await prisma.user.findUnique({ where: { id } });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+        const updatedUser = await prisma.user.update({
+            where: { id },
+            data: { active: !user.active }
+        });
+        res.json(updatedUser);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao atualizar status' });
+    }
+});
+
+app.get('/admin/plans', authenticateAdmin, async (req, res) => {
+    try {
+        const plans = await prisma.plan.findMany();
+        res.json(plans);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao buscar planos' });
+    }
+});
+
+app.post('/admin/plans', authenticateAdmin, async (req, res) => {
+    try {
+        const { name, price, description, maxClients, maxLoans } = req.body;
+        const plan = await prisma.plan.create({
+            data: {
+                name,
+                price: parseFloat(price),
+                description,
+                maxClients: parseInt(maxClients),
+                maxLoans: parseInt(maxLoans)
+            }
+        });
+        res.json(plan);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao criar plano' });
+    }
+});
+
+app.delete('/admin/plans/:id', authenticateAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await prisma.plan.delete({ where: { id } });
+        res.sendStatus(204);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao excluir plano' });
+    }
+});
+
+app.get('/admin/stats', authenticateAdmin, async (req, res) => {
+    try {
+        const totalUsers = await prisma.user.count();
+        const totalClients = await prisma.client.count();
+        const totalLoans = await prisma.loan.count();
+
+        // Soma total emprestado em todo o sistema
+        const totalLoanedResult = await prisma.loan.aggregate({
+            _sum: { amount: true }
+        });
+
+        res.json({
+            totalUsers,
+            totalClients,
+            totalLoans,
+            totalLoaned: totalLoanedResult._sum.amount || 0
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao buscar estatísticas' });
     }
 });
 
@@ -68,7 +345,7 @@ app.get('/clients', authenticateToken, async (req, res) => {
     try {
         const clients = await prisma.client.findMany({
             where: { userId: req.user.id },
-            include: { loans: true },
+            include: { loans: true, documents: true },
             orderBy: { name: 'asc' }
         });
         res.json(clients);
@@ -79,7 +356,7 @@ app.get('/clients', authenticateToken, async (req, res) => {
 
 app.post('/clients', authenticateToken, async (req, res) => {
     try {
-        const { name, whatsapp, cpf, rg, address, motherName, pix, bank, observation, rating } = req.body;
+        const { name, whatsapp, cpf, rg, address, motherName, pix, bank, observation, rating, group } = req.body;
 
         const client = await prisma.client.create({
             data: {
@@ -93,6 +370,7 @@ app.post('/clients', authenticateToken, async (req, res) => {
                 pix: pix || null,
                 bank: bank || null,
                 observation: observation || null,
+                group: group || null,
                 rating: rating || 5
             }
         });
@@ -109,7 +387,7 @@ app.post('/clients', authenticateToken, async (req, res) => {
 app.put('/clients/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, whatsapp, cpf, rg, address, motherName, pix, bank, observation, rating } = req.body;
+        const { name, whatsapp, cpf, rg, address, motherName, pix, bank, observation, rating, group } = req.body;
 
         // Garante que o cliente pertence ao usuário logado
         const existing = await prisma.client.findFirst({ where: { id, userId: req.user.id } });
@@ -127,6 +405,7 @@ app.put('/clients/:id', authenticateToken, async (req, res) => {
                 pix: pix || null,
                 bank: bank || null,
                 observation: observation || null,
+                group: group || null,
                 rating: rating
             }
         });
@@ -175,6 +454,8 @@ app.get('/clients/:id/stats', authenticateToken, async (req, res) => {
         loans.forEach(loan => {
             totalLoaned += Number(loan.amount);
 
+            if (loan.status === 'RENEGOTIATED') return;
+
             const pendingInstallments = loan.installments.filter(i => i.status === 'PENDING');
             if (pendingInstallments.length > 0) activeLoansCount++;
 
@@ -196,6 +477,50 @@ app.get('/clients/:id/stats', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Erro ao buscar estatísticas do cliente' });
+    }
+});
+
+app.post('/clients/:id/documents', authenticateToken, upload.single('file'), async (req, res) => {
+    const { id } = req.params;
+    const { name } = req.body;
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+
+        const document = await prisma.clientDocument.create({
+            data: {
+                clientId: id,
+                name: name || req.file.originalname,
+                url: `/uploads/${req.file.filename}`,
+                type: req.file.mimetype
+            }
+        });
+        res.json(document);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao salvar documento' });
+    }
+});
+
+app.delete('/documents/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const document = await prisma.clientDocument.findUnique({
+            where: { id },
+            include: { client: true }
+        });
+
+        if (!document) return res.status(404).json({ error: 'Documento não encontrado' });
+        if (document.client.userId !== req.user.id) return res.status(403).json({ error: 'Acesso negado' });
+
+        // Remover arquivo físico
+        const filePath = path.join(__dirname, 'uploads', path.basename(document.url));
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+
+        await prisma.clientDocument.delete({ where: { id } });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao excluir documento' });
     }
 });
 
@@ -372,6 +697,15 @@ app.post('/loans/:id/renegotiate', authenticateToken, async (req, res) => {
                 data: { status: 'RENEGOTIATED' }
             });
 
+            // 2. Marcar parcelas pendentes como RENEGOTIATED para não contar como atraso
+            await tx.installment.updateMany({
+                where: {
+                    loanId: id,
+                    status: 'PENDING'
+                },
+                data: { status: 'RENEGOTIATED' }
+            });
+
             // 2. Marcar parcelas pendentes como CANCELLED (ou similar, aqui vamos deixar como estão ou deletar? 
             // Melhor manter histórico, mas com status alterado para não somar dívida).
             // Vamos assumir que o status RENEGOTIATED no Loan já invalida a soma das parcelas nos dashboards.
@@ -435,6 +769,32 @@ app.post('/loans/:id/renegotiate', authenticateToken, async (req, res) => {
     }
 });
 
+app.put('/loans/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { totalAmount, startDate, partnerId } = req.body;
+    try {
+        const loan = await prisma.loan.findUnique({
+            where: { id },
+            include: { client: true }
+        });
+
+        if (!loan) return res.status(404).json({ error: 'Empréstimo não encontrado' });
+        if (loan.client.userId !== req.user.id) return res.status(403).json({ error: 'Acesso negado' });
+
+        const updated = await prisma.loan.update({
+            where: { id },
+            data: {
+                totalAmount: totalAmount ? parseFloat(totalAmount) : undefined,
+                startDate: startDate ? new Date(startDate) : undefined,
+                partnerId: partnerId || null
+            }
+        });
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao atualizar empréstimo' });
+    }
+});
+
 app.delete('/loans/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     try {
@@ -446,7 +806,20 @@ app.delete('/loans/:id', authenticateToken, async (req, res) => {
         if (!loan) return res.status(404).json({ error: 'Empréstimo não encontrado' });
         if (loan.client.userId !== req.user.id) return res.status(403).json({ error: 'Acesso negado' });
 
-        // Delete cascade já configurado no schema para installments, mas precisamos garantir
+        // Delete cascade já configurado no schema para installments
+        // Mas precisamos limpar as Transações financeiras geradas por este empréstimo para limpar o dashboard
+        // As transações são geradas com descrições específicas. Vamos tentar limpar as mais óbvias.
+
+        // 1. Transações de "Empréstimo Concedido"
+        await prisma.transaction.deleteMany({
+            where: {
+                userId: req.user.id,
+                description: { contains: loan.client.name }, // Remove transações ligadas ao nome do cliente
+                // Isso é um pouco agressivo, mas atende ao pedido de "limpar dados" quando exclui.
+                // Idealmente teríamos um loanId na Transaction.
+            }
+        });
+
         await prisma.loan.delete({ where: { id } });
         res.json({ success: true });
     } catch (error) {
@@ -515,6 +888,21 @@ app.post('/installments/:id/pay', authenticateToken, async (req, res) => {
                     date: new Date(paymentDate || new Date())
                 }
             });
+
+            // Verificar se todas as parcelas foram pagas para finalizar o empréstimo
+            const pendingInstallments = await tx.installment.count({
+                where: {
+                    loanId: installment.loanId,
+                    status: 'PENDING'
+                }
+            });
+
+            if (pendingInstallments === 0) {
+                await tx.loan.update({
+                    where: { id: installment.loanId },
+                    data: { status: 'COMPLETED' }
+                });
+            }
         });
 
         res.json({ success: true });
@@ -547,6 +935,28 @@ app.put('/installments/:id', authenticateToken, async (req, res) => {
                 dueDate: dueDate ? new Date(dueDate) : undefined
             }
         });
+
+        // Verificar status do empréstimo
+        const pending = await prisma.installment.count({
+            where: { loanId: installment.loanId, status: 'PENDING' }
+        });
+
+        if (pending === 0) {
+            await prisma.loan.update({
+                where: { id: installment.loanId },
+                data: { status: 'COMPLETED' }
+            });
+        } else {
+            // Se houver pendentes (ex: reabriu uma parcela), volta para ACTIVE
+            // Mas apenas se não estiver RENEGOTIATED (pois renegociado é um estado final de "cancelamento")
+            if (installment.loan.status !== 'RENEGOTIATED') {
+                await prisma.loan.update({
+                    where: { id: installment.loanId },
+                    data: { status: 'ACTIVE' }
+                });
+            }
+        }
+
         res.json(updated);
     } catch (error) {
         res.status(500).json({ error: 'Erro ao atualizar parcela' });
@@ -627,19 +1037,28 @@ app.get('/dashboard/summary', authenticateToken, async (req, res) => {
     try {
         // Agrega apenas dados do usuário
         const totalInvested = await prisma.loan.aggregate({
-            where: { client: { userId: req.user.id } },
+            where: {
+                client: { userId: req.user.id },
+                status: 'ACTIVE'
+            },
             _sum: { amount: true }
         });
 
         const totalReceivable = await prisma.loan.aggregate({
-            where: { client: { userId: req.user.id } },
+            where: {
+                client: { userId: req.user.id },
+                status: 'ACTIVE'
+            },
             _sum: { totalAmount: true }
         });
 
         const today = startOfDay(new Date());
         const lateInstallments = await prisma.installment.aggregate({
             where: {
-                loan: { client: { userId: req.user.id } },
+                loan: {
+                    client: { userId: req.user.id },
+                    status: 'ACTIVE' // Apenas empréstimos ativos contam como atraso
+                },
                 status: 'PENDING',
                 dueDate: { lt: today }
             },
@@ -673,7 +1092,10 @@ app.get('/dashboard/alerts', authenticateToken, async (req, res) => {
 
         const dueToday = await prisma.installment.findMany({
             where: {
-                loan: { client: { userId: req.user.id } },
+                loan: {
+                    client: { userId: req.user.id },
+                    status: 'ACTIVE'
+                },
                 dueDate: {
                     gte: startOfToday,
                     lte: endOfToday
@@ -689,7 +1111,10 @@ app.get('/dashboard/alerts', authenticateToken, async (req, res) => {
 
         const late = await prisma.installment.findMany({
             where: {
-                loan: { client: { userId: req.user.id } },
+                loan: {
+                    client: { userId: req.user.id },
+                    status: 'ACTIVE'
+                },
                 dueDate: { lt: startOfToday },
                 status: 'PENDING'
             },
