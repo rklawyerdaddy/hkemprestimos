@@ -390,7 +390,14 @@ const Clients = () => {
                         <tbody className="divide-y divide-white/5">
                             {clients.map((client) => (
                                 <tr key={client.id} className="hover:bg-white/5 transition-colors">
-                                    <td className="px-6 py-4 font-medium text-slate-200">{client.name}</td>
+                                    <td className="px-6 py-4 font-medium text-slate-200">
+                                        <div className="flex items-center gap-2">
+                                            {client.name}
+                                            {client.documents && client.documents.length > 0 && (
+                                                <FileText size={16} className="text-blue-400" title={`${client.documents.length} documento(s)`} />
+                                            )}
+                                        </div>
+                                    </td>
                                     <td className="px-6 py-4">
                                         {client.group ? (
                                             <span className="bg-slate-800 text-slate-300 px-2 py-1 rounded-md text-xs font-medium border border-slate-700">

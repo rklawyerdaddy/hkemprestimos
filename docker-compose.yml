@@ -44,6 +44,8 @@ services:
         condition: service_healthy
     networks:
       - web_network
+    volumes:
+      - server_uploads:/app/src/uploads
     restart: always
 
   client:
@@ -60,3 +62,4 @@ networks:
 
 volumes:
   db_data:
+  server_uploads:
