@@ -13,6 +13,7 @@ const Clients = () => {
 
     // Estado para documentos
     const [documents, setDocuments] = useState([]);
+    const [pendingFiles, setPendingFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
@@ -44,17 +45,42 @@ const Clients = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            let clientId;
             if (editingClient) {
                 await api.put(`/clients/${editingClient.id}`, { ...formData, rating: parseInt(formData.rating) });
+                clientId = editingClient.id;
                 addToast({ message: 'Cliente atualizado com sucesso', type: 'success' });
             } else {
-                await api.post('/clients', { ...formData, rating: parseInt(formData.rating) });
+                const res = await api.post('/clients', { ...formData, rating: parseInt(formData.rating) });
+                clientId = res.data.id;
                 addToast({ message: 'Cliente criado com sucesso', type: 'success' });
+            }
+
+            // Upload de documentos pendentes
+            if (pendingFiles.length > 0 && clientId) {
+                setUploading(true);
+                try {
+                    await Promise.all(pendingFiles.map(file => {
+                        const data = new FormData();
+                        data.append('file', file);
+                        return api.post(`/clients/${clientId}/documents`, data, {
+                            headers: { 'Content-Type': 'multipart/form-data' }
+                        });
+                    }));
+                    addToast({ message: 'Documentos anexados com sucesso!', type: 'success' });
+                } catch (err) {
+                    console.error(err);
+                    addToast({ message: 'Erro ao enviar alguns documentos', type: 'warning' });
+                } finally {
+                    setUploading(false);
+                }
             }
 
             setShowForm(false);
             setFormData({ name: '', whatsapp: '', cpf: '', address: '', group: '', rating: 5 });
             setEditingClient(null);
+            setDocuments([]);
+            setPendingFiles([]);
             loadClients();
         } catch (error) {
             const msg = error.response?.data?.error || 'Erro ao salvar cliente';
@@ -81,16 +107,18 @@ const Clients = () => {
         setEditingClient(null);
         setFormData({ name: '', whatsapp: '', cpf: '', address: '', group: '', rating: 5 });
         setDocuments([]);
+        setPendingFiles([]);
     };
 
     const handleFileUpload = async (e) => {
-        if (!editingClient) {
-            addToast({ message: 'Salve o cliente antes de anexar documentos', type: 'warning' });
-            return;
-        }
-
         const file = e.target.files[0];
         if (!file) return;
+
+        if (!editingClient) {
+            setPendingFiles([...pendingFiles, file]);
+            addToast({ message: 'Arquivo na fila para envio', type: 'info' });
+            return;
+        }
 
         const data = new FormData();
         data.append('file', file);
@@ -108,6 +136,10 @@ const Clients = () => {
         } finally {
             setUploading(false);
         }
+    };
+
+    const removePendingFile = (index) => {
+        setPendingFiles(pendingFiles.filter((_, i) => i !== index));
     };
 
     const handleDeleteDocument = async (docId) => {
@@ -192,6 +224,7 @@ const Clients = () => {
                             setEditingClient(null);
                             setFormData({ name: '', whatsapp: '', cpf: '', address: '', rating: 5 });
                             setDocuments([]);
+                            setPendingFiles([]);
                             setShowForm(!showForm);
                         }}
                         className="btn-primary flex items-center gap-2"
@@ -273,52 +306,65 @@ const Clients = () => {
                                 </div>
                             </div>
 
-                            {/* Seção de Documentos (Apenas na Edição) */}
-                            {editingClient && (
-                                <div className="md:col-span-2 mt-4 border-t pt-4 border-slate-700">
-                                    <h4 className="font-bold text-slate-300 mb-2 flex items-center gap-2">
-                                        <FileText size={18} />
-                                        Documentos Anexados
-                                    </h4>
+                            {/* Seção de Documentos */}
+                            <div className="md:col-span-2 mt-4 border-t pt-4 border-slate-700">
+                                <h4 className="font-bold text-slate-300 mb-2 flex items-center gap-2">
+                                    <FileText size={18} />
+                                    Documentos
+                                </h4>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
-                                        {documents.map(doc => (
-                                            <div key={doc.id} className="flex items-center justify-between bg-slate-800 p-3 rounded-lg border border-slate-700">
-                                                <a
-                                                    href={doc.url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-sm text-blue-400 hover:underline truncate max-w-[200px]"
-                                                >
-                                                    {doc.name}
-                                                </a>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDeleteDocument(doc.id)}
-                                                    className="text-red-400 hover:bg-red-900/20 p-1 rounded"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                        {documents.length === 0 && <p className="text-sm text-slate-500 italic">Nenhum documento anexado.</p>}
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <label className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors border border-slate-700">
-                                            <Upload size={18} />
-                                            {uploading ? 'Enviando...' : 'Anexar Documento'}
-                                            <input
-                                                type="file"
-                                                className="hidden"
-                                                onChange={handleFileUpload}
-                                                disabled={uploading}
-                                            />
-                                        </label>
-                                        <span className="text-xs text-slate-500">PDF, Imagens (Max 5MB)</span>
-                                    </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                    {documents.map(doc => (
+                                        <div key={doc.id} className="flex items-center justify-between bg-slate-800 p-3 rounded-lg border border-slate-700">
+                                            <a
+                                                href={doc.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-sm text-blue-400 hover:underline truncate max-w-[200px]"
+                                            >
+                                                {doc.name}
+                                            </a>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeleteDocument(doc.id)}
+                                                className="text-red-400 hover:bg-red-900/20 p-1 rounded"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {pendingFiles.map((file, index) => (
+                                        <div key={index} className="flex items-center justify-between bg-slate-800/50 p-3 rounded-lg border border-dashed border-slate-600">
+                                            <span className="text-sm text-slate-300 truncate max-w-[200px] flex items-center gap-2">
+                                                <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
+                                                {file.name} (Pendente)
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => removePendingFile(index)}
+                                                className="text-slate-400 hover:text-red-400 p-1"
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {documents.length === 0 && pendingFiles.length === 0 && <p className="text-sm text-slate-500 italic">Nenhum documento anexado.</p>}
                                 </div>
-                            )}
+
+                                <div className="flex items-center gap-2">
+                                    <label className={`cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors border border-slate-700 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                        <Upload size={18} />
+                                        {uploading ? 'Enviando...' : 'Anexar Documento'}
+                                        <input
+                                            type="file"
+                                            className="hidden"
+                                            onChange={handleFileUpload}
+                                            disabled={uploading}
+                                        />
+                                    </label>
+                                    <span className="text-xs text-slate-500">PDF, Imagens (Max 5MB)</span>
+                                </div>
+                            </div>
 
                             <div className="md:col-span-2 flex justify-end gap-2 mt-6">
                                 <button type="button" onClick={handleCancel} className="px-4 py-2 text-slate-400 hover:bg-slate-800 rounded-lg transition-colors">Cancelar</button>
