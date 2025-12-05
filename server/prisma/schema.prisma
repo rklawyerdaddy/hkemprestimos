@@ -120,6 +120,7 @@ model Loan {
   originalLoanId String?       // Para renegociação
   originalLoan   Loan?         @relation("Renegotiation", fields: [originalLoanId], references: [id])
   renegotiatedTo Loan[]        @relation("Renegotiation")
+  interestType   String        @default("MONTHLY") // MONTHLY, WEEKLY, DAILY
   installments   Installment[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt

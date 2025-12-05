@@ -6,7 +6,7 @@ const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
 const xss = require('xss-clean');
 const { PrismaClient } = require('@prisma/client');
-const { addMonths, startOfDay, endOfDay, isBefore, parseISO } = require('date-fns');
+const { addMonths, addWeeks, addDays, startOfDay, endOfDay, isBefore, parseISO } = require('date-fns');
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -596,7 +596,7 @@ app.get('/loans', authenticateToken, async (req, res) => {
 });
 
 app.post('/loans', authenticateToken, async (req, res) => {
-    const { clientId, partnerId, amount, totalAmount, installmentsCount, startDate } = req.body;
+    const { clientId, partnerId, amount, totalAmount, installmentsCount, startDate, interestType } = req.body; // Added interestType
 
     try {
         const client = await prisma.client.findFirst({ where: { id: clientId, userId: req.user.id } });
@@ -614,6 +614,7 @@ app.post('/loans', authenticateToken, async (req, res) => {
                     clientId,
                     partnerId: partnerId || null,
                     amount: principal,
+                    interestType: interestType || 'MONTHLY',
                     interestRate: interestRate,
                     totalAmount: total,
                     startDate: new Date(startDate),
@@ -621,7 +622,12 @@ app.post('/loans', authenticateToken, async (req, res) => {
                         create: Array.from({ length: installmentsCount }).map((_, index) => ({
                             number: index + 1,
                             amount: installmentValue,
-                            dueDate: addMonths(new Date(startDate), index + 1),
+
+                            dueDate: interestType === 'WEEKLY'
+                                ? addWeeks(new Date(startDate), index + 1)
+                                : interestType === 'DAILY'
+                                    ? addDays(new Date(startDate), index + 1)
+                                    : addMonths(new Date(startDate), index + 1),
                             status: 'PENDING'
                         }))
                     }
@@ -679,9 +685,10 @@ app.post('/loans', authenticateToken, async (req, res) => {
 
 app.post('/loans/:id/renegotiate', authenticateToken, async (req, res) => {
     const { id } = req.params;
-    const { newTotalAmount, newInstallmentsCount, newStartDate, paidAmountEntry } = req.body;
+    const { newTotalAmount, newInstallmentsCount, newStartDate, paidAmountEntry, interestType } = req.body;
 
     try {
+
         const oldLoan = await prisma.loan.findUnique({
             where: { id },
             include: { client: true, installments: true }
@@ -734,11 +741,17 @@ app.post('/loans/:id/renegotiate', authenticateToken, async (req, res) => {
                     interestRate: 0, // Recalcular se necessário
                     startDate: new Date(newStartDate),
                     status: 'ACTIVE',
+                    interestType: interestType || 'MONTHLY',
                     installments: {
                         create: Array.from({ length: parseInt(newInstallmentsCount) }).map((_, index) => ({
                             number: index + 1,
                             amount: newInstallmentValue,
-                            dueDate: addMonths(new Date(newStartDate), index + 1),
+
+                            dueDate: interestType === 'WEEKLY'
+                                ? addWeeks(new Date(newStartDate), index + 1)
+                                : interestType === 'DAILY'
+                                    ? addDays(new Date(newStartDate), index + 1)
+                                    : addMonths(new Date(newStartDate), index + 1),
                             status: 'PENDING'
                         }))
                     }

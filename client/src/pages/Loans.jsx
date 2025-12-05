@@ -50,14 +50,22 @@ const Loans = () => {
         data: null
     });
 
+    // Estado para Modal de Nota Promissória
+    const [promissoryModal, setPromissoryModal] = useState({
+        open: false,
+        loan: null
+    });
+
     const [formData, setFormData] = useState({
         clientId: '',
         partnerId: '',
         amount: '',
         totalAmount: '',
         installmentsCount: '',
+        installmentsCount: '',
         startDate: new Date().toISOString().split('T')[0],
-        interestRate: ''
+        interestRate: '',
+        interestType: 'MONTHLY'
     });
 
     useEffect(() => {
@@ -306,6 +314,86 @@ const Loans = () => {
                         Novo Empréstimo
                     </button>
                 </div>
+
+                {/* Modal de Nota Promissória */}
+                {promissoryModal.open && promissoryModal.loan && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:p-0 print:absolute print:inset-0 print:bg-white print:z-[9999]">
+                        <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-3xl animate-in fade-in zoom-in duration-200 text-black relative h-[90vh] overflow-y-auto print:h-auto print:w-full print:shadow-none print:overflow-visible print:p-0 print:rounded-none">
+                            <button
+                                onClick={() => setPromissoryModal({ open: false, loan: null })}
+                                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 print:hidden"
+                            >
+                                <X size={24} />
+                            </button>
+
+                            <div className="print:p-8 border-4 border-slate-800 p-8 h-full bg-slate-50 relative">
+                                <div className="text-center mb-8">
+                                    <h1 className="text-4xl font-serif font-bold tracking-widest uppercase border-b-2 border-slate-800 inline-block pb-2 mb-2">Nota Promissória</h1>
+                                    <div className="flex justify-between items-center mt-4 text-sm font-serif">
+                                        <span>Nº: <strong>{promissoryModal.loan.id.slice(0, 8)}</strong></span>
+                                        <span>Valor: <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(promissoryModal.loan.totalAmount)}</strong></span>
+                                        <span>Vencimento: <strong>{formatDate(promissoryModal.loan.installments?.[0]?.dueDate)}</strong></span>
+                                    </div>
+                                </div>
+
+                                <div className="font-serif text-justify leading-loose text-lg mb-12">
+                                    <p>
+                                        Ao(s) <strong>{promissoryModal.loan.installments?.length > 1 ? 'dias estipulados nas parcelas abaixo' : formatDate(promissoryModal.loan.installments?.[0]?.dueDate)}</strong>, pagarei(emos) por esta única via de NOTA PROMISSÓRIA a
+                                        <strong> HK EMPRÉSTIMOS </strong> (ou à sua ordem), a quantia de
+                                        <strong> {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(promissoryModal.loan.totalAmount)}</strong>
+                                        em moeda corrente deste país.
+                                    </p>
+                                    <p className="mt-4">
+                                        Pagável em <strong>CIDADE - UF</strong>.
+                                    </p>
+                                </div>
+
+                                <div className="mb-12">
+                                    <h3 className="font-bold border-b border-slate-400 mb-2">Dados do Emitente:</h3>
+                                    <div className="grid grid-cols-2 gap-4 font-serif">
+                                        <div>
+                                            <span className="font-bold">Nome:</span> {promissoryModal.loan.client?.name}
+                                        </div>
+                                        <div>
+                                            <span className="font-bold">CPF/CNPJ:</span> {promissoryModal.loan.client?.cpf || 'N/A'}
+                                        </div>
+                                        <div className="col-span-2">
+                                            <span className="font-bold">Endereço:</span> {promissoryModal.loan.client?.address || 'N/A'}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-20 pt-8 border-t border-black text-center w-2/3 mx-auto">
+                                    <p className="text-lg font-serif mb-1">{promissoryModal.loan.client?.name}</p>
+                                    <p className="text-xs uppercase">Assinatura do Emitente</p>
+                                </div>
+
+                                {promissoryModal.loan.installments?.length > 0 && (
+                                    <div className="mt-8 pt-8 border-t border-dashed border-slate-400 print:block">
+                                        <h4 className="font-bold text-sm mb-2">Detalhamento das Parcelas:</h4>
+                                        <div className="grid grid-cols-3 gap-2 text-xs">
+                                            {promissoryModal.loan.installments.map(inst => (
+                                                <div key={inst.id} className="border p-1 text-center">
+                                                    {inst.number}ª - {formatDate(inst.dueDate)} - {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(inst.amount)}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="mt-8 flex justify-center print:hidden">
+                                <button
+                                    onClick={() => window.print()}
+                                    className="flex items-center gap-2 bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-700 transition-colors shadow-lg"
+                                >
+                                    <Printer size={20} />
+                                    Imprimir Nota
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Modal de Recibo */}
                 {receiptModal.open && receiptModal.data && (
@@ -622,6 +710,16 @@ const Loans = () => {
 
                             <select
                                 className="input-premium"
+                                value={formData.interestType}
+                                onChange={e => setFormData({ ...formData, interestType: e.target.value })}
+                            >
+                                <option value="MONTHLY">Mensal</option>
+                                <option value="WEEKLY">Semanal</option>
+                                <option value="DAILY">Diário</option>
+                            </select>
+
+                            <select
+                                className="input-premium"
                                 value={formData.partnerId}
                                 onChange={e => setFormData({ ...formData, partnerId: e.target.value })}
                             >
@@ -793,6 +891,13 @@ const Loans = () => {
                                                 >
                                                     <RefreshCw size={16} />
                                                     Renegociar Dívida
+                                                </button>
+                                                <button
+                                                    onClick={() => setPromissoryModal({ open: true, loan: loan })}
+                                                    className="flex items-center gap-2 text-yellow-400 hover:bg-yellow-500/10 px-3 py-1.5 rounded-lg text-sm font-medium border border-yellow-500/20 transition-colors"
+                                                >
+                                                    <FileText size={16} />
+                                                    Nota Promissória
                                                 </button>
                                             </>
                                         )}
