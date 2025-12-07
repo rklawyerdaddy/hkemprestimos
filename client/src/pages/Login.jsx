@@ -37,7 +37,7 @@ const Login = () => {
             <div className="glass-card p-10 rounded-3xl w-full max-w-md relative z-10 animate-in fade-in zoom-in duration-500 border-white/10 shadow-2xl shadow-black/50">
                 <div className="text-center mb-10">
                     <div className="w-16 h-16 bg-gradient-to-br from-gold-400 to-gold-600 rounded-2xl flex items-center justify-center shadow-lg shadow-gold-500/20 mx-auto mb-6">
-                        <span className="text-slate-950 font-black text-3xl">H</span>
+                        <span className="text-slate-950 font-black text-2xl">HK</span>
                     </div>
                     <h1 className="text-3xl font-bold text-slate-100 mb-2 tracking-tight">Bem-vindo de volta</h1>
                     <p className="text-slate-400">Acesse sua conta para continuar</p>
@@ -91,6 +91,7 @@ const Login = () => {
                     </button>
                 </form>
 
+                {/* Registration disabled temporarily
                 <div className="mt-8 text-center">
                     <p className="text-slate-500 text-sm">
                         Não tem uma conta?{' '}
@@ -99,6 +100,7 @@ const Login = () => {
                         </Link>
                     </p>
                 </div>
+                */}
             </div>
         </div>
     );
