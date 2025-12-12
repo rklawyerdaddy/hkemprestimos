@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
-import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2, Search, Filter } from 'lucide-react';
+import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2, Search, Filter, Download } from 'lucide-react';
 import clsx from 'clsx';
 
 import { useToast } from '../contexts/ToastContext';
@@ -18,6 +18,28 @@ const Transactions = () => {
         category: '',
         date: new Date().toISOString().split('T')[0]
     });
+
+    const exportCSV = () => {
+        const headers = ["Data", "Descrição", "Categoria", "Tipo", "Valor"];
+        const rows = transactions.map(t => [
+            new Date(t.date).toLocaleDateString('pt-BR'),
+            t.description,
+            t.category || '',
+            t.type === 'IN' ? 'Entrada' : 'Saída',
+            t.amount
+        ]);
+
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + headers.join(",") + "\n"
+            + rows.map(e => e.join(",")).join("\n");
+
+        const link = document.createElement("a");
+        link.setAttribute("href", encodeURI(csvContent));
+        link.setAttribute("download", "fluxo_caixa_hk.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     const fetchTransactions = async () => {
         try {
@@ -78,13 +100,22 @@ const Transactions = () => {
                         <h2 className="text-2xl font-bold text-slate-100">Fluxo de Caixa</h2>
                         <p className="text-slate-400">Gerencie todas as entradas e saídas.</p>
                     </div>
-                    <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="btn-primary flex items-center gap-2"
-                    >
-                        <Plus size={20} />
-                        Nova Transação
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={exportCSV}
+                            className="bg-slate-800 text-slate-300 hover:text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors border border-slate-700"
+                        >
+                            <Download size={20} />
+                            CSV
+                        </button>
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="btn-primary flex items-center gap-2"
+                        >
+                            <Plus size={20} />
+                            Nova Transação
+                        </button>
+                    </div>
                 </div>
 
                 {/* Resumo Rápido */}

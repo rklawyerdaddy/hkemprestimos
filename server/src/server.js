@@ -345,11 +345,50 @@ app.get('/clients', authenticateToken, async (req, res) => {
     try {
         const clients = await prisma.client.findMany({
             where: { userId: req.user.id },
-            include: { loans: true, documents: true },
+            include: {
+                loans: {
+                    include: { installments: true }
+                },
+                documents: true
+            },
             orderBy: { name: 'asc' }
         });
-        res.json(clients);
+
+        const clientsWithStats = clients.map(client => {
+            let hasRenegotiated = false;
+            let hasLatePayment = false;
+            let totalDebt = 0;
+            let totalPaid = 0;
+
+            client.loans.forEach(loan => {
+                if (loan.status === 'RENEGOTIATED') {
+                    hasRenegotiated = true;
+                }
+
+                loan.installments.forEach(inst => {
+                    if (inst.status === 'PENDING') {
+                        totalDebt += Number(inst.amount);
+                        if (new Date(inst.dueDate) < new Date()) {
+                            hasLatePayment = true;
+                        }
+                    } else if (inst.status === 'PAID' || inst.status === 'INTEREST_PAID') {
+                        totalPaid += Number(inst.paidAmount);
+                    }
+                });
+            });
+
+            return {
+                ...client,
+                hasRenegotiated,
+                hasLatePayment,
+                totalDebt,
+                totalPaid
+            };
+        });
+
+        res.json(clientsWithStats);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: 'Erro ao buscar clientes' });
     }
 });

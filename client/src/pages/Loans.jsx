@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
-import { Plus, ChevronDown, ChevronUp, Pencil, X, Save, Copy, Trash, RefreshCw, AlertTriangle, Edit, MessageCircle, FileText, Printer } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Pencil, X, Save, Copy, Trash, RefreshCw, AlertTriangle, Edit, MessageCircle, FileText, Printer, Search, Download } from 'lucide-react';
 import clsx from 'clsx';
 import { useToast } from '../contexts/ToastContext';
 
@@ -62,11 +62,40 @@ const Loans = () => {
         amount: '',
         totalAmount: '',
         installmentsCount: '',
-        installmentsCount: '',
         startDate: new Date().toISOString().split('T')[0],
         interestRate: '',
         interestType: 'MONTHLY'
     });
+
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredLoans = loans.filter(loan =>
+        loan.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        loan.totalAmount?.toString().includes(searchTerm)
+    );
+
+    const exportCSV = () => {
+        const headers = ["Cliente", "Valor Total", "Data Inicio", "Status", "Parcelas", "Parceiro"];
+        const rows = loans.map(l => [
+            l.client?.name || '',
+            l.totalAmount,
+            new Date(l.startDate).toLocaleDateString('pt-BR'),
+            l.status,
+            l.installments?.length || 0,
+            l.partner?.name || ''
+        ]);
+
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + headers.join(",") + "\n"
+            + rows.map(e => e.join(",")).join("\n");
+
+        const link = document.createElement("a");
+        link.setAttribute("href", encodeURI(csvContent));
+        link.setAttribute("download", "emprestimos_hk.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     useEffect(() => {
         loadLoans();
@@ -306,13 +335,32 @@ const Loans = () => {
             <div className="space-y-6">
                 <div className="flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-slate-100">Empréstimos</h2>
-                    <button
-                        onClick={() => setShowForm(!showForm)}
-                        className="btn-primary flex items-center gap-2"
-                    >
-                        <Plus size={20} />
-                        Novo Empréstimo
-                    </button>
+                    <div className="flex gap-2">
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Buscar empréstimo..."
+                                className="bg-slate-900 border border-slate-700 text-slate-200 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:border-blue-500 transition-colors w-64"
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                            <Search className="absolute left-3 top-2.5 text-slate-500" size={18} />
+                        </div>
+                        <button
+                            onClick={exportCSV}
+                            className="bg-slate-800 text-slate-300 hover:text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors border border-slate-700"
+                        >
+                            <Download size={20} />
+                            CSV
+                        </button>
+                        <button
+                            onClick={() => setShowForm(!showForm)}
+                            className="btn-primary flex items-center gap-2"
+                        >
+                            <Plus size={20} />
+                            Novo Empréstimo
+                        </button>
+                    </div>
                 </div>
 
                 {/* Modal de Nota Promissória */}
@@ -809,7 +857,7 @@ const Loans = () => {
                 )}
 
                 <div className="space-y-4">
-                    {loans.map((loan) => (
+                    {filteredLoans.map((loan) => (
                         <div key={loan.id} className={clsx(
                             "glass-card rounded-2xl overflow-hidden transition-all",
                             loan.status === 'RENEGOTIATED' ? "border-purple-500/30 opacity-75" : ""

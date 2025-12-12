@@ -15,6 +15,39 @@ const Clients = () => {
     const [documents, setDocuments] = useState([]);
     const [pendingFiles, setPendingFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredClients = clients.filter(client =>
+        client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.cpf?.includes(searchTerm) ||
+        client.group?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const exportCSV = () => {
+        const headers = ["Nome", "CPF", "WhatsApp", "Grupo", "Risco", "Dívida", "Pago", "Renegociou", "Atrasado"];
+        const rows = clients.map(c => [
+            c.name,
+            c.cpf || '',
+            c.whatsapp || '',
+            c.group || '',
+            c.rating,
+            c.totalDebt,
+            c.totalPaid,
+            c.hasRenegotiated ? 'Sim' : 'Não',
+            c.hasLatePayment ? 'Sim' : 'Não'
+        ]);
+
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + headers.join(",") + "\n"
+            + rows.map(e => e.join(",")).join("\n");
+
+        const link = document.createElement("a");
+        link.setAttribute("href", encodeURI(csvContent));
+        link.setAttribute("download", "clientes_hk.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     useEffect(() => {
         loadClients();
@@ -219,19 +252,38 @@ const Clients = () => {
             <div className="space-y-6">
                 <div className="flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-slate-100">Clientes</h2>
-                    <button
-                        onClick={() => {
-                            setEditingClient(null);
-                            setFormData({ name: '', whatsapp: '', cpf: '', address: '', rating: 5 });
-                            setDocuments([]);
-                            setPendingFiles([]);
-                            setShowForm(!showForm);
-                        }}
-                        className="btn-primary flex items-center gap-2"
-                    >
-                        <Plus size={20} />
-                        Novo Cliente
-                    </button>
+                    <div className="flex gap-2">
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Buscar clientes..."
+                                className="bg-slate-900 border border-slate-700 text-slate-200 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:border-blue-500 transition-colors w-64"
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                            <Search className="absolute left-3 top-2.5 text-slate-500" size={18} />
+                        </div>
+                        <button
+                            onClick={exportCSV}
+                            className="bg-slate-800 text-slate-300 hover:text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors border border-slate-700"
+                        >
+                            <Download size={20} />
+                            CSV
+                        </button>
+                        <button
+                            onClick={() => {
+                                setEditingClient(null);
+                                setFormData({ name: '', whatsapp: '', cpf: '', address: '', rating: 5 });
+                                setDocuments([]);
+                                setPendingFiles([]);
+                                setShowForm(!showForm);
+                            }}
+                            className="btn-primary flex items-center gap-2"
+                        >
+                            <Plus size={20} />
+                            Novo Cliente
+                        </button>
+                    </div>
                 </div>
 
                 {showForm && (
@@ -380,15 +432,14 @@ const Clients = () => {
                             <tr>
                                 <th className="px-6 py-4">Nome</th>
                                 <th className="px-6 py-4">Grupo</th>
+                                <th className="px-6 py-4">Status Financeiro</th>
                                 <th className="px-6 py-4">Risco</th>
                                 <th className="px-6 py-4">WhatsApp</th>
-                                <th className="px-6 py-4">Endereço</th>
-                                <th className="px-6 py-4">Empréstimos Ativos</th>
                                 <th className="px-6 py-4 text-right">Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
-                            {clients.map((client) => (
+                            {filteredClients.map((client) => (
                                 <tr key={client.id} className="hover:bg-white/5 transition-colors">
                                     <td className="px-6 py-4 font-medium text-slate-200">
                                         <div className="flex items-center gap-2">
@@ -406,15 +457,33 @@ const Clients = () => {
                                         ) : '-'}
                                     </td>
                                     <td className="px-6 py-4">
+                                        <div className="flex flex-col gap-1">
+                                            {client.hasLatePayment && (
+                                                <span className="text-red-400 text-xs font-bold border border-red-500/20 bg-red-500/10 px-2 py-0.5 rounded w-fit">
+                                                    Em Atraso
+                                                </span>
+                                            )}
+                                            {client.hasRenegotiated && (
+                                                <span className="text-purple-400 text-xs font-bold border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 rounded w-fit">
+                                                    Renegociado
+                                                </span>
+                                            )}
+                                            {!client.hasLatePayment && !client.hasRenegotiated && client.totalDebt > 0 && (
+                                                <span className="text-green-400 text-xs font-bold border border-green-500/20 bg-green-500/10 px-2 py-0.5 rounded w-fit">
+                                                    Em Dia
+                                                </span>
+                                            )}
+                                            {!client.hasLatePayment && !client.hasRenegotiated && client.totalDebt == 0 && (
+                                                <span className="text-slate-500 text-xs px-2 py-0.5 w-fit">
+                                                    --
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
                                         {renderStars(client.rating || 5)}
                                     </td>
                                     <td className="px-6 py-4 text-slate-400">{client.whatsapp || '-'}</td>
-                                    <td className="px-6 py-4 text-slate-400 truncate max-w-[200px]">{client.address || '-'}</td>
-                                    <td className="px-6 py-4">
-                                        <span className="bg-blue-500/10 text-blue-400 px-2 py-1 rounded-md font-bold text-xs border border-blue-500/20">
-                                            {client.loans?.filter(l => l.status === 'ACTIVE').length || 0}
-                                        </span>
-                                    </td>
                                     <td className="px-6 py-4 text-right flex justify-end gap-2">
                                         <button
                                             onClick={() => handleEdit(client)}
