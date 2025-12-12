@@ -536,15 +536,30 @@ const Clients = () => {
                             <h3 className="font-bold text-xl mb-1 text-slate-100">{statsModal.clientName}</h3>
                             <p className="text-sm text-slate-400 mb-6">Resumo Financeiro</p>
 
-                            <div className="space-y-4">
-                                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
-                                    <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Total Emprestado</p>
-                                    <p className="text-2xl font-bold text-slate-100 mt-1">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(statsModal.data.totalLoaned)}
-                                    </p>
-                                </div>
-
+                            <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
+                                {/* Score e Resumo */}
                                 <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 col-span-2 flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Score de Pagamento</p>
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-2 w-24 bg-slate-700 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full ${statsModal.data.score >= 80 ? 'bg-green-500' : statsModal.data.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                                        style={{ width: `${statsModal.data.score}%` }}
+                                                    />
+                                                </div>
+                                                <span className={`font-bold text-lg ${statsModal.data.score >= 80 ? 'text-green-400' : statsModal.data.score >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                    {statsModal.data.score}/100
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-slate-400">Atrasos Totais</p>
+                                            <p className="font-bold text-slate-100">{statsModal.data.totalDelays}</p>
+                                        </div>
+                                    </div>
+
                                     <div className="bg-green-500/10 p-4 rounded-xl border border-green-500/20">
                                         <p className="text-xs text-green-400 uppercase font-bold tracking-wider">Total Pago</p>
                                         <p className="text-lg font-bold text-green-400 mt-1">
@@ -564,6 +579,47 @@ const Clients = () => {
                                     <span className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-lg text-sm font-bold border border-blue-500/30">
                                         {statsModal.data.activeLoansCount}
                                     </span>
+                                </div>
+                                <div className="bg-purple-500/10 p-4 rounded-xl border border-purple-500/20 flex justify-between items-center">
+                                    <p className="text-sm text-purple-300 font-medium">Renegociações</p>
+                                    <span className="bg-purple-500/20 text-purple-300 px-3 py-1 rounded-lg text-sm font-bold border border-purple-500/30">
+                                        {statsModal.data.totalRenegotiations}
+                                    </span>
+                                </div>
+
+                                {/* Timeline de Histórico */}
+                                <div>
+                                    <h4 className="font-bold text-slate-200 mb-4 flex items-center gap-2">
+                                        <FileText size={18} className="text-slate-400" />
+                                        Histórico Completo
+                                    </h4>
+                                    <div className="space-y-3 pl-2 border-l-2 border-slate-800">
+                                        {statsModal.data.history?.map((event, index) => (
+                                            <div key={index} className="relative pl-6 pb-2">
+                                                <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 
+                                                    ${event.status === 'GOOD' ? 'bg-green-500 border-slate-950' :
+                                                        event.status === 'BAD' ? 'bg-red-500 border-slate-950' :
+                                                            event.status === 'WARNING' ? 'bg-yellow-500 border-slate-950' : 'bg-blue-500 border-slate-950'}`}
+                                                />
+                                                <p className="text-xs text-slate-500 font-medium mb-0.5">
+                                                    {new Date(event.date).toLocaleDateString('pt-BR')}
+                                                </p>
+                                                <p className="text-slate-300 text-sm font-medium">{event.description}</p>
+                                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded
+                                                    ${event.type === 'LOAN' ? 'bg-blue-500/20 text-blue-400' :
+                                                        event.type === 'PAYMENT' ? 'bg-green-500/20 text-green-400' :
+                                                            event.type === 'DELAY' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                                    {event.type === 'LOAN' ? 'Novo Empréstimo' :
+                                                        event.type === 'PAYMENT' ? 'Pagamento' :
+                                                            event.type === 'DELAY' ? 'Atraso' :
+                                                                event.type === 'LATE_PAYMENT' ? 'Pago com Atraso' : 'Evento'}
+                                                </span>
+                                            </div>
+                                        ))}
+                                        {(!statsModal.data.history || statsModal.data.history.length === 0) && (
+                                            <p className="text-slate-500 text-sm italic pl-4">Nenhum histórico registrado.</p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>

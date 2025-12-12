@@ -482,36 +482,108 @@ app.get('/clients/:id/stats', authenticateToken, async (req, res) => {
 
         const loans = await prisma.loan.findMany({
             where: { clientId: id },
-            include: { installments: true }
+            include: { installments: true },
+            orderBy: { startDate: 'desc' }
         });
 
         let totalLoaned = 0;
         let totalDebt = 0;
         let totalPaid = 0;
         let activeLoansCount = 0;
+        let totalRenegotiations = 0;
+        let totalDelays = 0; // Installments paid late or pending/late
+
+        const history = [];
 
         loans.forEach(loan => {
             totalLoaned += Number(loan.amount);
 
-            if (loan.status === 'RENEGOTIATED') return;
+            // History: Loan Creation
+            history.push({
+                date: loan.startDate,
+                type: 'LOAN',
+                description: `Empréstimo de R$ ${Number(loan.amount).toFixed(2)}`,
+                status: loan.status
+            });
 
-            const pendingInstallments = loan.installments.filter(i => i.status === 'PENDING');
-            if (pendingInstallments.length > 0) activeLoansCount++;
+            if (loan.status === 'RENEGOTIATED') {
+                totalRenegotiations++;
+                history.push({
+                    date: loan.updatedAt, // Approximate date of renegotiation
+                    type: 'RENEGOTIATION',
+                    description: `Empréstimo renegociado`,
+                    status: 'WARNING'
+                });
+            } else {
+                if (loan.status === 'ACTIVE') {
+                    const pending = loan.installments.filter(i => i.status === 'PENDING').length;
+                    if (pending > 0) activeLoansCount++;
+                }
+            }
 
             loan.installments.forEach(inst => {
                 if (inst.status === 'PENDING') {
-                    totalDebt += Number(inst.amount);
+                    if (loan.status !== 'RENEGOTIATED') {
+                        totalDebt += Number(inst.amount);
+                        if (new Date(inst.dueDate) < new Date()) {
+                            totalDelays++;
+                            history.push({
+                                date: inst.dueDate,
+                                type: 'DELAY',
+                                description: `Atraso na parcela ${inst.number} (${new Date(inst.dueDate).toLocaleDateString('pt-BR')})`,
+                                status: 'BAD'
+                            });
+                        }
+                    }
                 } else if (inst.status === 'PAID' || inst.status === 'INTEREST_PAID') {
                     totalPaid += Number(inst.paidAmount);
+
+                    // Check if it was paid late
+                    if (inst.paidDate && new Date(inst.paidDate) > new Date(inst.dueDate)) {
+                        totalDelays++;
+                        history.push({
+                            date: inst.paidDate,
+                            type: 'LATE_PAYMENT',
+                            description: `Pagamento com atraso da parcela ${inst.number}`,
+                            status: 'WARNING'
+                        });
+                    } else {
+                        history.push({
+                            date: inst.paidDate || inst.updatedAt,
+                            type: 'PAYMENT',
+                            description: `Pagamento da parcela ${inst.number}`,
+                            status: 'GOOD'
+                        });
+                    }
                 }
             });
         });
+
+        // Sort history by date descending
+        history.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // Simple Score Calculation (0 - 100)
+        // Base 100
+        // -5 per delay
+        // -10 per renegotiation
+        // +1 per on-time payment (max +20 bonus)
+
+        let score = 100;
+        score -= (totalDelays * 5);
+        score -= (totalRenegotiations * 10);
+
+        if (score < 0) score = 0;
+        if (score > 100) score = 100;
 
         res.json({
             totalLoaned,
             totalDebt,
             totalPaid,
-            activeLoansCount
+            activeLoansCount,
+            totalRenegotiations,
+            totalDelays,
+            score,
+            history
         });
     } catch (error) {
         console.error(error);
