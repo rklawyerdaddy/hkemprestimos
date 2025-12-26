@@ -276,11 +276,34 @@ app.delete('/admin/users/:id', authenticateAdmin, async (req, res) => {
         const user = await prisma.user.findUnique({ where: { id } });
         if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
 
-        await prisma.user.delete({ where: { id } });
-        res.json({ success: true, message: 'Usuário excluído com sucesso' });
+        // Deleção em cascata manual para garantir integridade
+        await prisma.$transaction(async (tx) => {
+            // 1. Deletar Clientes (Isso deleta empréstimos e documentos se o DB estiver com cascade, 
+            // mas por segurança vamos limpar dependências explícitas se possível ou confiar no deleteMany)
+            // O proproschema diz onDelete: Cascade para Loans -> Client, então deletar Client resolve Loans.
+            await tx.client.deleteMany({ where: { userId: id } });
+
+            // 2. Deletar Parceiros (Empréstimos já foram, então ok)
+            await tx.partner.deleteMany({ where: { userId: id } });
+
+            // 3. Deletar Transações
+            await tx.transaction.deleteMany({ where: { userId: id } });
+
+            // 4. Deletar Assinatura e Pagamentos
+            const subscription = await tx.subscription.findUnique({ where: { userId: id } });
+            if (subscription) {
+                await tx.payment.deleteMany({ where: { subscriptionId: subscription.id } });
+                await tx.subscription.delete({ where: { id: subscription.id } });
+            }
+
+            // 5. Finalmente deletar o usuário
+            await tx.user.delete({ where: { id } });
+        });
+
+        res.json({ success: true, message: 'Usuário e todos os dados vinculados foram excluídos com sucesso' });
     } catch (error) {
         console.error('Erro ao excluir usuário:', error);
-        res.status(500).json({ error: 'Erro ao excluir usuário' });
+        res.status(500).json({ error: 'Erro ao excluir usuário: ' + error.message });
     }
 });
 
