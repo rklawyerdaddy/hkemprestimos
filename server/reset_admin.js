@@ -12,8 +12,8 @@ async function main() {
         });
         console.log(`Usuarios removidos: ${deleted.count}`);
 
-        // Cria novo usuário com a senha 'semnada'
-        const hashedPassword = await bcrypt.hash('semnada', 10);
+        // Cria novo usuário com a senha '456123a'
+        const hashedPassword = await bcrypt.hash('456123a', 10);
 
         const user = await prisma.user.create({
             data: {
@@ -26,7 +26,7 @@ async function main() {
         console.log('-------------------------------------------');
         console.log('SUCESSO! Novo usuario criado.');
         console.log('Usuario: admin');
-        console.log('Senha:   semnada');
+        console.log('Senha:   456123a');
         console.log('-------------------------------------------');
 
     } catch (e) {
