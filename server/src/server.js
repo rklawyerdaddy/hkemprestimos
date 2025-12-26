@@ -264,6 +264,26 @@ app.put('/admin/users/:id/toggle-status', authenticateAdmin, async (req, res) =>
     }
 });
 
+app.delete('/admin/users/:id', authenticateAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Prevenir auto-exclusão
+        if (id === req.user.id) {
+            return res.status(400).json({ error: 'Você não pode excluir sua própria conta.' });
+        }
+
+        const user = await prisma.user.findUnique({ where: { id } });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+        await prisma.user.delete({ where: { id } });
+        res.json({ success: true, message: 'Usuário excluído com sucesso' });
+    } catch (error) {
+        console.error('Erro ao excluir usuário:', error);
+        res.status(500).json({ error: 'Erro ao excluir usuário' });
+    }
+});
+
 app.get('/admin/plans', authenticateAdmin, async (req, res) => {
     try {
         const plans = await prisma.plan.findMany();

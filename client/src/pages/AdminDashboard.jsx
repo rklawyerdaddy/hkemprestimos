@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
-import { Users, DollarSign, Activity, Shield, Ban, CheckCircle } from 'lucide-react';
+import { Users, DollarSign, Activity, Shield, Ban, CheckCircle, Trash2 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
 const AdminDashboard = () => {
@@ -89,6 +89,20 @@ const AdminDashboard = () => {
             loadData(true);
         } catch (error) {
             addToast({ message: 'Erro ao atualizar status', type: 'error' });
+        }
+    };
+
+    const handleDeleteUser = async (user) => {
+        if (!confirm(`Tem certeza que deseja excluir o usuário "${user.username}"? Esta ação não pode ser desfeita e apagará todos os dados vinculados.`)) return;
+
+        try {
+            await api.delete(`/admin/users/${user.id}`);
+            addToast({ message: 'Usuário excluído com sucesso', type: 'success' });
+            loadData(true);
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            const msg = error.response?.data?.error || 'Erro ao excluir usuário';
+            addToast({ message: msg, type: 'error' });
         }
     };
 
@@ -411,6 +425,15 @@ const AdminDashboard = () => {
                                                     {user.active ? 'Bloquear' : 'Ativar'}
                                                 </button>
                                             )}
+                                            {user.username !== 'admin' && (
+                                                <button
+                                                    onClick={() => handleDeleteUser(user)}
+                                                    className="bg-red-500/10 text-red-400 p-2 rounded-lg hover:bg-red-500/20 transition-colors border border-red-500/20"
+                                                    title="Excluir Usuário"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -454,7 +477,7 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             </div>
-        </Layout>
+        </Layout >
     );
 };
 
