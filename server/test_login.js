@@ -1,25 +1,34 @@
-const axios = require('axios');
-
 async function testLogin() {
     try {
         console.log('Tentando login localmente (http://localhost:3333/login)...');
 
-        const response = await axios.post('http://localhost:3333/login', {
-            username: 'admin',
-            password: '456123a' // Senha padrão que definimos
+        const response = await fetch('http://localhost:3333/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: 'admin',
+                password: '456123a' // Senha padrão que definimos
+            })
         });
 
-        console.log('LOGIN SUCESSO!');
-        console.log('Token:', response.data.token);
-        console.log('Role:', response.data.role);
-    } catch (error) {
-        console.error('LOGIN FALHOU!');
-        if (error.response) {
-            console.error('Status:', error.response.status);
-            console.error('Data:', error.response.data);
+        const data = await response.json();
+
+        if (response.ok) {
+            console.log('LOGIN SUCESSO!');
+            console.log('Token:', data.token);
+            console.log('Role:', data.role);
+            console.log('Nome:', data.name);
         } else {
-            console.error('Erro:', error.message);
+            console.error('LOGIN FALHOU!');
+            console.error('Status:', response.status);
+            console.error('Erro:', data.error || data);
         }
+
+    } catch (error) {
+        console.error('ERRO DE CONEXÃO ou SCRIPT:');
+        console.error(error.message);
     }
 }
 
