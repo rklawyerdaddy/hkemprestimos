@@ -74,7 +74,14 @@ const upload = multer({
 
 // CORS Configuration
 const corsOptions = {
-    origin: process.env.CORS_ORIGIN || '*', // Em produção, defina isso para o domínio do frontend
+    origin: (origin, callback) => {
+        const allowedOrigins = (process.env.CORS_ORIGIN || '*').split(',').map(o => o.trim());
+        if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(null, false);
+        }
+    },
     optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));

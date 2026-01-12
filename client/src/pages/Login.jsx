@@ -23,7 +23,14 @@ const Login = () => {
                 navigate('/');
             }
         } catch (err) {
-            setError('Usuário ou senha incorretos');
+            console.error(err);
+            if (err.response && err.response.status === 400) {
+                setError('Usuário ou senha incorretos');
+            } else if (err.response && err.response.status === 403) {
+                setError(err.response.data.error || 'Conta inativa ou sem permissão.');
+            } else {
+                setError('Erro de conexão com o servidor. Tente novamente.');
+            }
         }
     };
 
