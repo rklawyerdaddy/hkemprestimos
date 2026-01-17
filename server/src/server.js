@@ -27,6 +27,7 @@ if (!SECRET_KEY) {
 
 // Security Middlewares
 app.use(helmet()); // Set security headers
+app.set('trust proxy', 1); // Confiar no proxy reverso (Nginx)
 
 // Rate Limiting
 const limiter = rateLimit({
