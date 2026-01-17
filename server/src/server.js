@@ -374,6 +374,8 @@ app.get('/admin/stats', authenticateAdmin, async (req, res) => {
     }
 });
 
+/*
+// Rota Desativada por Segurança - Use o Painel Admin para criar usuários
 app.post('/register', async (req, res) => {
     const { username, password, name } = req.body;
     try {
@@ -389,6 +391,7 @@ app.post('/register', async (req, res) => {
         res.status(500).json({ error: 'Erro ao criar usuário' });
     }
 });
+*/
 
 // --- ROTAS DE CLIENTES (SaaS) ---
 
