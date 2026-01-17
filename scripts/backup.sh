@@ -3,7 +3,7 @@
 # Configurações
 BACKUP_DIR="/root/backups"
 CONTAINER_NAME="hk_db"
-DB_USER="hk_user"
+DB_USER="raulkiyoshi"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 FILENAME="hk_backup_$TIMESTAMP.sql.gz"
 
