@@ -27,6 +27,8 @@ const AdminRoute = ({ children }) => {
 import Calendar from './pages/Calendar';
 import { ToastProvider } from './contexts/ToastContext';
 
+import Overdue from './pages/Overdue';
+
 function App() {
     return (
         <ToastProvider>
@@ -39,6 +41,7 @@ function App() {
                     <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
                     <Route path="/clients" element={<PrivateRoute><Clients /></PrivateRoute>} />
                     <Route path="/loans" element={<PrivateRoute><Loans /></PrivateRoute>} />
+                    <Route path="/overdue" element={<PrivateRoute><Overdue /></PrivateRoute>} />
                     <Route path="/calendar" element={<PrivateRoute><Calendar /></PrivateRoute>} />
                     <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
                     <Route path="/partners" element={<PrivateRoute><Partners /></PrivateRoute>} />

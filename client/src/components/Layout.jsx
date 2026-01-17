@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Banknote, ArrowRightLeft, LogOut, Menu, X, Calendar, Shield } from 'lucide-react';
+import { LayoutDashboard, Users, Banknote, ArrowRightLeft, LogOut, Menu, X, Calendar, Shield, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 
 const SidebarItem = ({ to, icon: Icon, label }) => {
@@ -87,6 +87,7 @@ const Layout = ({ children }) => {
                     <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
                     <SidebarItem to="/clients" icon={Users} label="Clientes" />
                     <SidebarItem to="/loans" icon={Banknote} label="Empréstimos" />
+                    <SidebarItem to="/overdue" icon={AlertTriangle} label="Atrasados" />
                     <SidebarItem to="/calendar" icon={Calendar} label="Calendário" />
                     <SidebarItem to="/transactions" icon={ArrowRightLeft} label="Fluxo de Caixa" />
                     <SidebarItem to="/partners" icon={Users} label="Parceiros" />
