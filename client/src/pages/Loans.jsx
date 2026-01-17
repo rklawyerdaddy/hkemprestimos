@@ -900,11 +900,21 @@ const Loans = () => {
                                         </p>
                                     </div>
                                 </div>
-                                <div className="text-left sm:text-right pl-14 sm:pl-0">
-                                    <p className="font-bold text-slate-100 text-lg">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(loan.totalAmount)}
-                                    </p>
-                                    <p className="text-xs text-slate-400">Total a Pagar</p>
+                                <div className="text-left sm:text-right pl-14 sm:pl-0 flex sm:flex-col gap-4 sm:gap-1">
+                                    <div>
+                                        <p className="font-bold text-slate-100 text-lg">
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(loan.totalAmount)}
+                                        </p>
+                                        <p className="text-xs text-slate-400">Valor Total</p>
+                                    </div>
+                                    <div className="block">
+                                        <p className="font-bold text-red-400 text-lg">
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                                                loan.installments?.filter(i => i.status === 'PENDING').reduce((acc, curr) => acc + Number(curr.amount), 0) || 0
+                                            )}
+                                        </p>
+                                        <p className="text-xs text-slate-500">Restante</p>
+                                    </div>
                                 </div>
                             </div>
 
