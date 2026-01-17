@@ -47,6 +47,16 @@ const Overdue = () => {
         loadData();
     }, []);
 
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredInstallments = overdueInstallments.filter(item => {
+        const term = searchTerm.toLowerCase();
+        return (
+            item.loan.client.name.toLowerCase().includes(term) ||
+            (item.loan.client.whatsapp && item.loan.client.whatsapp.includes(term))
+        );
+    });
+
     const getDaysOverdue = (dueDate) => {
         const days = differenceInDays(new Date(), parseISO(dueDate));
         return days;
@@ -54,7 +64,7 @@ const Overdue = () => {
 
     return (
         <Layout>
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
                         <AlertTriangle className="text-red-500" size={32} />
@@ -62,12 +72,23 @@ const Overdue = () => {
                     </h2>
                     <p className="text-slate-400 mt-1">Gestão de pagamentos pendentes e cobrança</p>
                 </div>
-                <button onClick={loadData} className="p-2 hover:bg-white/5 rounded-full transition-colors text-gold-400">
-                    <RefreshCw size={20} />
-                </button>
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <div className="relative w-full md:w-64">
+                        <input
+                            type="text"
+                            placeholder="Buscar cliente..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-gold-500 transition-colors"
+                        />
+                    </div>
+                    <button onClick={loadData} className="p-2 hover:bg-white/5 rounded-full transition-colors text-gold-400">
+                        <RefreshCw size={20} />
+                    </button>
+                </div>
             </div>
 
-            {/* Cards de Resumo */}
+            {/* Cards de Resumo - Mantidos iguais */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="glass-card p-6 rounded-xl flex items-center gap-4">
                     <div className="p-3 rounded-xl bg-red-500/10 text-red-400 shadow-lg shadow-red-500/10">
@@ -110,13 +131,15 @@ const Overdue = () => {
 
                 {loading ? (
                     <div className="p-8 text-center text-slate-500">Carregando...</div>
-                ) : overdueInstallments.length === 0 ? (
+                ) : filteredInstallments.length === 0 ? (
                     <div className="p-12 text-center text-slate-500 flex flex-col items-center">
                         <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mb-4 text-green-500">
                             <AlertCircle size={32} />
                         </div>
-                        <p className="text-lg font-medium text-slate-300">Nenhum pagamento em atraso!</p>
-                        <p className="text-sm">Todos os clientes estão em dia.</p>
+                        <p className="text-lg font-medium text-slate-300">
+                            {searchTerm ? 'Nenhum resultado encontrado para a busca.' : 'Nenhum pagamento em atraso!'}
+                        </p>
+                        {!searchTerm && <p className="text-sm">Todos os clientes estão em dia.</p>}
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -133,11 +156,12 @@ const Overdue = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
-                                {overdueInstallments.map((item) => {
+                                {filteredInstallments.map((item) => {
                                     const daysLate = getDaysOverdue(item.dueDate);
 
                                     return (
                                         <tr key={item.id} className="hover:bg-red-500/5 transition-colors group">
+
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 font-bold text-xs">
